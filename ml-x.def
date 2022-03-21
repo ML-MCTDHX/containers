@@ -1,0 +1,44 @@
+Bootstrap: debootstrap
+OSVersion: focal
+MirrorURL: http://de.archive.ubuntu.com/ubuntu/
+
+%files
+    ml-x /usr/local/src/ml-x
+    
+%post
+    echo "Installing dependencies"
+    apt update
+    apt install -y gpg wget
+    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+    wget -O - https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/oneapi-archive-keyring.gpg >/dev/null
+    echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ focal main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+    echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
+    apt update
+    apt install -y cmake intel-hpckit
+
+    ls /usr/local/src/ml-x
+
+    echo "Compiling"
+    cmake \
+        -S /usr/local/src/ml-x \
+        -B build \
+        -G "Unix Makefiles" \
+        -DCMAKE_BUILD_TYPE:STRING=Release \
+        -DCMAKE_INSTALL_PREFIX:PATH=/usr \
+        -DENABKE_MKL:BOOL=ON \
+        -DCMAKE_Fortran_COMPILER:PATH=ifort \
+        -DCMAKE_C_COMPILER:PATH=icc
+    cmake --build build
+    cmake --install build
+    rm -rf build
+
+    echo "Cleaning APT up"
+    apt remove --auto-remove -y cmake
+    rm -rf /var/lib/apt/lists/*
+
+    echo "Install runtime"
+    apt install intel-oneapi-runtime-libs
+
+
+%runscript
+    echo "running"
